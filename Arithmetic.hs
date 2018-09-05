@@ -1,8 +1,10 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 -- | Module      : Arithmetic
 --   Description : Solution to Assignment 1
 --   Copyright   : Karl D. Asmussen © Sep. 2018
 --   License     : Public Domain
-module Arithmetic ( Exp(..), ArithError(..), VName, showExp, ) where
+module Arithmetic ( Exp(..), ArithError(..), VName, showExp, evalSimple, evalFull, evalErr ) where
 
 import Control.Monad
 import Control.Monad.Except
@@ -103,7 +105,7 @@ extendEnv :: VName -> Integer -> Env -> Env
 extendEnv v i e = \v' -> if v == v' then Just i else e v'
 
 -- | Monadic evaluator
-evalM :: Exp -> ReaderT Env (Either ArithError) Integer
+evalM :: (MonadError ArithError m, MonadReader Env m) => Exp -> m Integer
 evalM (Cst i) = return i
 evalM (Add l r) = liftM2 (+) (evalM l) (evalM r)
 evalM (Sub l r) = liftM2 (-) (evalM l) (evalM r)
@@ -143,3 +145,19 @@ evalFull exp env = case evalErr exp env of
 evalErr :: Exp -> Env -> Either ArithError Integer
 evalErr exp env = runReaderT (evalM exp) env
 
+-- | Compactly render 'Exp'
+showCompact :: Exp -> String
+showComapct exp = showsCompact' exp 0
+  where showsCompact :: Exp -> Integer -> ShowS
+        showsCompact (Cst i) _ = shows i
+        showsCompact exp prec = _
+        
+        leftRight :: Exp -> (Exp, Exp)
+        leftRight = _
+        precedence :: Exp -> (Integer, Integer)
+        precedence (Cst _) = (100, 100)
+        precedence (Add _ _) = (10, 11)
+        precedence (Sub _ _) = (10, 11)
+        precedence (Mul _ _) = (20, 21)
+        precedence (Div _ _) = (20, 21)
+        precedence (Pow _ _) = (31, 30)
