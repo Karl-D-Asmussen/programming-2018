@@ -2,10 +2,10 @@
 --   Description : Solution to Assignment 1
 --   Copyright   : Karl D. Asmussen © Sep. 2018
 --   License     : Public Domain
-module Arithmetic ( Exp(..), VName, showExp ) where
+module Arithmetic ( Exp(..), ArithError(..), VName, showExp, ) where
 
 import Control.Monad
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Reader
 
 -- | Expression data type as given
@@ -27,9 +27,9 @@ data Exp
    -- | Variable reference
    | Var VName
    -- | Variable specification
-   | Let { var :: VName, aux, body :: Expr }
+   | Let { var :: VName, aux, body :: Exp }
    -- | Capital-sigma summation operator 
-   | Sum { var :: VName, from, to, body :: Expr }
+   | Sum { var :: VName, from, to, body :: Exp }
 
 -- | Variable name alias
 type VName = String
@@ -45,11 +45,11 @@ data ArithError
    -- | Other
    | EOther String
 
-instance Show ArithError where
-  show (EBadVar n) = "Variable not found: `" ++ n ++ "'"
-  show EDivZero = "Division by zero"
-  show ENegPower = "Negative exponent"
-  show (Other e) = "Error: " ++ e
+-- | Simple rendering for 'ArithError'
+showErr (EBadVar n) = "Variable not found: `" ++ n ++ "'"
+showErr EDivZero = "Division by zero"
+showErr ENegPower = "Negative exponent"
+showErr (EOther e) = if null e then "Error" else "Error: " ++ e
 
 -- | Simple rendering for 'Exp'
 showExp :: Exp -> String
@@ -70,15 +70,15 @@ showExp e = showsExp e ""
         parens s = ('(':) . s . (')':)
 
         -- | 'ShowS' combinator for infix operators
-        infixs :: ShowS -> String -> ShowS -> Shows
+        infixs :: ShowS -> String -> ShowS -> ShowS
         infixs l o r = l . (' ':) . (o ++) . (' ':) . r
 
         -- | Utility function converting 'Exp' to 'ShowS'
-        infixsExp :: Exp -> String -> Exp -> Shows
+        infixsExp :: Exp -> String -> Exp -> ShowS
         infixsExp l o r = infixs (showsExp l) o (showsExp r)
         
         -- | Utility function combining 'infixsExp' and 'parens'
-        parInfixsExp :: Exp -> String -> Expr -> Shows
+        parInfixsExp :: Exp -> String -> Exp -> ShowS
         parInfixsExp l o r = parens (infixsExp l o r)
 
 -- | Simple evaluator for 'Exp'
@@ -102,7 +102,8 @@ initEnv = \_ -> Nothing
 extendEnv :: VName -> Integer -> Env -> Env
 extendEnv v i e = \v' -> if v == v' then Just i else e v'
 
-evalM :: (MonadReader Env m, MonadError ArithError m) => Exp -> m Integer
+-- | Monadic evaluator
+evalM :: Exp -> ReaderT Env (Either ArithError) Integer
 evalM (Cst i) = return i
 evalM (Add l r) = liftM2 (+) (evalM l) (evalM r)
 evalM (Sub l r) = liftM2 (-) (evalM l) (evalM r)
@@ -124,7 +125,7 @@ evalM (If c y n) = do c' <- evalM c
 evalM (Var n) = do x <- reader ($ n)
                    case x of
                         Just i -> return i
-                        Nothing -> throwError EBadVar
+                        Nothing -> throwError (EBadVar n)
 evalM (Let n a b) = do a' <- evalM a
                        local (extendEnv n a') (evalM b)
 evalM (Sum n f t b) = do f' <- evalM f
@@ -132,19 +133,13 @@ evalM (Sum n f t b) = do f' <- evalM f
                          xs <- forM [f' .. t'] $ \i -> local (extendEnv n i) (evalM b)
                          return (sum xs)
 
--- -- | Evaluate 'Exp' using variables
--- evalFull :: Exp -> Env -> Integer
--- evalFull (Cst i) env = i
--- evalFull (Add l r) env = evalFull l env + evalFull r env
--- evalFull (Sub l r) env = evalFull l env - evalFull r env
--- evalFull (Mul l r) env = evalFull l env * evalFull r env
--- evalFull (Div l r) env = evalFull l env `div` evalFull r env
--- evalFull (Pow l r) env = evalFull l env ^ evalFull r env
--- evalFull (If c y n) env = if 0 /= evalFull c env then evalFull y env else evalFull n env
--- evalFull (Var v) env = case env v of Just i -> i; Nothing -> error ("undefined variable `" ++ v ++ "' in Exp")
--- evalFull (Let v a b) env = let x = evalFull a env in evalFull b (extendEnv v x env)
--- evalFull (Sum v l h b) env = let x = evalFull l env; y = evalFull h env in sum $ [ evalFull b (extendEnv v i) | i <- [x..y] ]
+-- | Evaluate 'Exp' using variables
+evalFull :: Exp -> Env -> Integer
+evalFull exp env = case evalErr exp env of
+                        Left err -> error (showErr err)
+                        Right res -> res
 
-
+-- | Evaluate 'Exp' in an exception-safe manner
 evalErr :: Exp -> Env -> Either ArithError Integer
+evalErr exp env = runReaderT (evalM exp) env
 
