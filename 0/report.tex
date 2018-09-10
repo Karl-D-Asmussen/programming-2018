@@ -1,0 +1,138 @@
+\documentclass[a4paper,article,oneside,10pt,twocolumn]{memoir}
+
+\usepackage[english]{babel}
+\usepackage[english]{isodate}
+
+\usepackage{listings}
+\usepackage{ulem}
+\usepackage{fontspec}
+\usepackage{xcolor}
+
+\setmainfont{Linux Libertine O}
+\setsansfont{Linux Biolinum O}
+\setmonofont[Scale=0.9]{Fira Mono}
+
+\makeatletter
+\newcommand{\verbatimfont}[1]{\def\verbatim@font{#1}}%
+\makeatother
+\verbatimfont{\ttfamily}
+
+\setsecnumdepth{chapter}
+
+\lstset{
+  language=Haskell,
+  basicstyle=\footnotesize\ttfamily,
+  numbers=left,
+  numbersep=5pt,
+  tabsize=2,
+  showstringspaces=false, 
+  keywordstyle=\color{blue},
+  stringstyle=\color{orange!50!black},
+  emphstyle=\color{green!50!black}
+}
+
+\setlrmarginsandblock{2cm}{2cm}{1}
+\setulmarginsandblock{2cm}{4cm}{1}
+\setcolsepandrule{1cm}{0pt}
+\checkandfixthelayout 
+
+\setlength{\headheight}{45pt}
+\nouppercaseheads
+\makepagestyle{fancy}
+\makeoddhead{fancy}{}{}{\begin{minipage}{0.25\textwidth}\thetitle\\\theauthor\\\thecourse\end{minipage}}
+\makeoddfoot{fancy}{\thedate}{}{\thepage\ of \thelastpage}
+\pagestyle{fancy}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+
+\newcommand\thecourse{Advanced Programming 2018\\CPH Univ. CS Dept.}
+
+\title{Assignment 0}
+\author{Karl D. Asmussen \texttt{twk181}}
+\isodash{--}\isodate
+\date{\protect\today}
+
+\begin{document}
+\maketitle\thispagestyle{fancy}
+
+
+\section{Showing}
+
+My implementation of \lstinline{showExp} uses the \lstinline{ShowS} type internally,
+because I personally abhor writing a bunch of \lstinline{++}'s. I use a number of helper functions
+that eliminate some boilerplate, and yet end up writing the same line five times. All tests pass.
+
+My implementation of \lstinline{showCompact} uses a precedence system internally
+to get everything \emph{mostly} right, accounting for parentheses levels with precedence levels
+and for left/right association by offsetting the precedence levels in either branch. I've
+handcrafted the case for prefix negation, and used an entirely different strategy for
+avoiding boilerplate. All tests pass.
+
+\section{Utility}
+
+My implementation of \lstinline{extendInv} crucially \lstinline{seq}'s the
+extant environment with the newly constructed one. This is to allow the use
+of \lstinline{undefined} to disallow variable use and definition, as any attempt
+to even construct an environment would be met with runtime errors. All tests pass.
+
+\section{Eval}
+
+My implementation of \lstinline{evalSimple} actually defers directly
+to \lstinline{evalFull} using the above mechanism to ensure error compliance. There
+are no tests to check for this. All tests pass.
+
+My implementation of \lstinline{evalFull} also defers, this time to
+\lstinline{evalErr} and simply converts \lstinline{Left} errors into runtime
+exceptions using my utility function \lstinline{showErr}.
+All tests pass.
+
+\textit{A/N: \lstinline{showErr} doesn't use \lstinline{ShowS}, and it shows.}
+
+My implementation of \lstinline{evalErr} is an alias of \lstinline{evalEager}.
+All tests pass.
+
+My implementation of \lstinline{evalEager} is really the meat of this
+entire assignment. It uses a helper function called \lstinline{evalM} which is based
+on \lstinline{MonadReader} and \lstinline{MonadError}, generic over implementation. In
+the specific instance of \lstinline{evalEager} the implementation becomes
+\lstinline{ReaderT Env (Either ArithError) Integer}.
+
+The choice of monad transformers to solve this assignment is massively overkill, I admit.
+On the other hand they are also the right tool for the job. The archetype of Reader is scoped
+variables, with the \lstinline{MonadReader} implementation calling the primitives \lstinline{local}
+and \lstinline{ask}. Error-handling is neatly done with \lstinline{Either}, but part of
+me wishes there was a neat implementation of continuation-based error handling in monad form
+in the mtl. All tests pass.
+
+My implementation of \lstinline{evalLazy} is far from stellar. Its eager
+cousin gets to have all the monad transforming fun, but unfortunately also uses monadic
+sequencing to force let-bindings in the interpreted language.
+
+I have so far failed to find a way to defer error-reporting in a general sense, but I can
+still cheat your test suite. All tests pass.
+
+\section{Quality and Motivation}
+
+Code quality is probably below par. I have been coding mostly straightforward, but
+especially in the \lstinline{show*} family, my handling of boilerplate varies; I should have
+worked more on eliminating duplicate code from both, or implementing the simpler in terms
+of the more complex with a flag of some sort.
+
+\section{Style}
+
+I like to use do-notation in this manner:
+
+\begin{lstlisting}
+myFun a b c = do a' <- a
+                 b' <- b
+                 c' <- c
+                 return (a' + b' + c')
+\end{lstlisting}
+
+Hlint can \sout{suck my d} sue me.
+
+Also can we start allowing lines over 80 characters long?
+The vt100 is \emph{forty years old now.}
+
+\end{document}

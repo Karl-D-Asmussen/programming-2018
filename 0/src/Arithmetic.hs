@@ -24,14 +24,16 @@ showExp :: Exp -> String
 showExp e = showsExp e ""
   where -- Using `ShowS` for convenience
         showsExp :: Exp -> ShowS
-        showsExp (Cst i) = shows i
+        showsExp (Cst i)
+          | i < 0 = parens (shows i)
+          | otherwise = shows i
         showsExp (Add l r) = parInfixsExp l "+" r
         showsExp (Sub l r) = parInfixsExp l "-" r
         showsExp (Mul l r) = parInfixsExp l "*" r
         showsExp (Div l r) = parInfixsExp l "/" r
         showsExp (Pow l r) = parInfixsExp l "^" r
         showsExp _ = error "unsupported Exp constructor in showExp"
-        
+
         -- 'ShowS' conbinator for enclosing in parentheses
         parens :: ShowS -> ShowS
         parens s = ('(':) . s . (')':)
@@ -43,7 +45,7 @@ showExp e = showsExp e ""
         -- Utility function converting 'Exp' to 'ShowS'
         infixsExp :: Exp -> String -> Exp -> ShowS
         infixsExp l o r = infixs (showsExp l) o (showsExp r)
-        
+
         -- Utility function combining 'infixsExp' and 'parens'
         parInfixsExp :: Exp -> String -> Exp -> ShowS
         parInfixsExp l o r = parens (infixsExp l o r)
@@ -51,14 +53,6 @@ showExp e = showsExp e ""
 
 evalSimple :: Exp -> Integer
 evalSimple e = evalFull e (error "unsupported Exp constructor in showExp")
-
--- evalSimple (Cst i) = i
--- evalSimple (Add l r) = evalSimple l + evalSimple r
--- evalSimple (Sub l r) = evalSimple l - evalSimple r
--- evalSimple (Mul l r) = evalSimple l * evalSimple r
--- evalSimple (Div l r) = evalSimple l `div` evalSimple r
--- evalSimple (Pow l r) = evalSimple l ^ evalSimple r
--- evalSimple _ = error "unsupported Exp constructor in showExp"
 
 extendEnv :: VName -> Integer -> Env -> Env
 extendEnv v i e = e `seq` \v' -> if v == v' then Just i else e v'
@@ -69,24 +63,32 @@ evalFull exp env = case evalErr exp env of
                         Right res -> res
 
 evalErr :: Exp -> Env -> Either ArithError Integer
-evalErr exp env = runReaderT (evalM exp) env
+evalErr = evalEager
 
 -- optional parts (if not attempted, leave them unmodified)
 
 showCompact :: Exp -> String
 showCompact exp = showsCompact exp 0 ""
   where showsCompact :: Exp -> Integer -> ShowS
-        showsCompact (Cst i) _ = shows i
-        showsCompact (Let _ _ _) _ = undefined
+        showsCompact (Cst i) prec
+          | i < 0, prec > 10 = ('(':) . shows i . (')':)
+          | otherwise = shows i
+
+        showsCompact Let {} _ = undefined
         showsCompact (Var _) _ = undefined
-        showsCompact (Sum _ _ _ _) _ = undefined
-        showsCompact exp prec = (if prec > lrp then parens else id) (ls . operator exp . rs)
+        showsCompact Sum {} _ = undefined
+
+        showsCompact exp prec = pars main
           where (le, re) = leftRight exp
-                (lp, rp)      = precedence exp
+                (lp, rp) = precedence exp
                 ls = showsCompact le lp
                 rs = showsCompact re rp
-                lrp          = min lp rp
-        
+                lrp = min lp rp
+                main = (ls . operator exp . rs)
+                pars | prec > lrp = parens
+                     | otherwise = id
+
+
         leftRight :: Exp -> (Exp, Exp)
         leftRight (Add l r) = (l, r)
         leftRight (Sub l r) = (l, r)
@@ -96,11 +98,13 @@ showCompact exp = showsCompact exp 0 ""
         leftRight _ = undefined
 
         precedence :: Exp -> (Integer, Integer)
-        precedence (Add _ _) = (10, 10)
+        precedence (Cst i) | i < 0 = (10, 10)
+                           | otherwise = (100, 100)
+        precedence (Add _ _) = (10, 11)
         precedence (Sub _ _) = (10, 11)
-        precedence (Mul _ _) = (20, 20)
+        precedence (Mul _ _) = (30, 31)
         precedence (Div _ _) = (20, 21)
-        precedence (Pow _ _) = (31, 30)
+        precedence (Pow _ _) = (41, 40)
         precedence _ = undefined
 
         parens :: ShowS -> ShowS
@@ -115,32 +119,42 @@ showCompact exp = showsCompact exp 0 ""
         operator _ = undefined
 
 evalEager :: Exp -> Env -> Either ArithError Integer
-evalEager = evalErr
+evalEager = runReaderT . evalM
 
 evalLazy :: Exp -> Env -> Either ArithError Integer
 evalLazy (Cst i) _env = return i
 evalLazy (Add l r) env = liftM2 (+) (evalLazy l env) (evalLazy r env)
 evalLazy (Sub l r) env = liftM2 (-) (evalLazy l env) (evalLazy r env)
 evalLazy (Mul l r) env = liftM2 (*) (evalLazy l env) (evalLazy r env)
-evalLazy (Div l r) env = liftM2 div (evalLazy l env) (evalLazy r env)
-evalLazy (Pow l r) env = liftM2 (^) (evalLazy l env) (evalLazy r env)
+evalLazy (Div l r) env = do l' <- evalLazy l env
+                            r' <- evalLazy r env
+                            if 0 == r'
+                               then throwError EDivZero
+                               else return (l' `div` r')
+evalLazy (Pow l r) env = do l' <- evalLazy l env
+                            r' <- evalLazy r env
+                            if r' < 0
+                               then throwError ENegPower
+                               else return (l' ^ r')
 evalLazy (If c t f) env = do c' <- evalLazy c env
-                             if 0 == c'
+                             if 0 /= c'
                                 then evalLazy t env
                                 else evalLazy f env
-evalLazy (Let n a b) env = do a' <- evalLazy a env
-                              evalLazy b (extendEnv n a' env)
+evalLazy (Let n a b) env = do -- a' <- evalLazy a env
+                              evalLazy b (extendEnv n (evalFull a env) env)
 evalLazy (Var n) env = case env n of
                             Just i -> return i
                             Nothing -> throwError (EBadVar n)
 evalLazy (Sum n f t b) env = do f' <- evalLazy f env
                                 t' <- evalLazy t env
-                                xs <- forM [f' .. t'] $ \i -> evalLazy b (extendEnv n i env)
+                                xs <- forM [f' .. t'] $ \i ->
+                                      evalLazy b (extendEnv n i env)
                                 return (sum xs)
 
 -- utility functions
 
 -- Simple rendering for 'ArithError'
+showErr :: ArithError -> String
 showErr (EBadVar n) = "Variable not found: `" ++ n ++ "'"
 showErr EDivZero = "Division by zero"
 showErr ENegPower = "Negative exponent"
@@ -174,5 +188,6 @@ evalM (Let n a b) = do a' <- evalM a
                        local (extendEnv n a') (evalM b)
 evalM (Sum n f t b) = do f' <- evalM f
                          t' <- evalM t
-                         xs <- forM [f' .. t'] $ \i -> local (extendEnv n i) (evalM b)
+                         xs <- forM [f' .. t'] $ \i ->
+                               local (extendEnv n i) (evalM b)
                          return (sum xs)
