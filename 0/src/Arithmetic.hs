@@ -1,51 +1,55 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# OPTIONS_GHC -W #-}
 
 -- | Module      : Arithmetic
 --   Description : Solution to Assignment 1
 --   Copyright   : Karl D. Asmussen © Sep. 2018
 --   License     : Public Domain
-module Arithmetic ( Exp(..), ArithError(..), VName, showExp, evalSimple, evalFull, evalErr ) where
+module Arithmetic
+  (
+  showExp,
+  evalSimple,
+  extendEnv,
+  evalFull,
+  evalErr,
+  showCompact,
+  evalEager,
+  evalLazy
+  )
+
+where
+
+import Definitions
+
+showExp :: Exp -> String
+showExp = undefined
+
+evalSimple :: Exp -> Integer
+evalSimple = undefined
+
+extendEnv :: VName -> Integer -> Env -> Env
+extendEnv = undefined
+
+evalFull :: Exp -> Env -> Integer
+evalFull = undefined
+
+evalErr :: Exp -> Env -> Either ArithError Integer
+evalErr = undefined
+
+-- optional parts (if not attempted, leave them unmodified)
+
+showCompact :: Exp -> String
+showCompact = undefined
+
+evalEager :: Exp -> Env -> Either ArithError Integer
+evalEager = undefined
+
+evalLazy :: Exp -> Env -> Either ArithError Integer
+evalLazy = undefined
 
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.Reader
-
--- | Expression data type as given
-data Exp
-   -- | Integer constant
-   = Cst Integer
-   -- | Addition
-   | Add Exp Exp
-   -- | Subtraction
-   | Sub Exp Exp
-   -- | Multiplication
-   | Mul Exp Exp
-   -- | Division
-   | Div Exp Exp
-   -- | Raising to power
-   | Pow Exp Exp
-   -- | Conditional, zero for no
-   | If { test, yes, no :: Exp }
-   -- | Variable reference
-   | Var VName
-   -- | Variable specification
-   | Let { var :: VName, aux, body :: Exp }
-   -- | Capital-sigma summation operator 
-   | Sum { var :: VName, from, to, body :: Exp }
-
--- | Variable name alias
-type VName = String
-
--- | Arithmetic error type as given
-data ArithError
-   -- | Variable not found
-   = EBadVar VName
-   -- | Division by zero
-   | EDivZero
-   -- | Negative power
-   | ENegPower
-   -- | Other
-   | EOther String
 
 -- | Simple rendering for 'ArithError'
 showErr (EBadVar n) = "Variable not found: `" ++ n ++ "'"
