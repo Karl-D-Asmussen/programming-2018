@@ -1,0 +1,127 @@
+\documentclass[a4paper,article,10pt,notitlepage,twocolumn,oneside]{memoir}
+
+%%%%%%%%%%%%%%%%
+%%% PACKAGES %%%
+%%%%%%%%%%%%%%%%
+
+%language
+\usepackage[english]{babel}
+\usepackage[english]{isodate}
+
+%fonts
+\usepackage{fontspec}
+
+%graphics
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{tikz-cd}
+\usepackage{xcolor}
+\usepackage{lipsum}
+
+%symbols
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{listings}
+
+%bibtex
+\usepackage[backend=biber]{biblatex}
+\addbibresource{ass1.bib}
+
+%last because technical reasons
+\usepackage{hyperref}
+\usepackage{memhfixc}
+
+%%%%%%%%%%%%%
+%%% SETUP %%%
+%%%%%%%%%%%%%
+
+%narrow margins to capitalize on page real estate
+\setlrmarginsandblock{2cm}{2cm}{1}
+\setulmarginsandblock{2cm}{4cm}{1}
+\setcolsepandrule{1cm}{0pt}
+\checkandfixthelayout 
+
+%nice fonts
+\setmainfont{Linux Libertine O} %download: http://libertine-fonts.org/
+\setsansfont{Linux Biolinum O} %download: http://libertine-fonts.org/
+\setmonofont[Scale=0.9]{Fira Mono} %download: https://github.com/mozilla/Fira
+
+\makeatletter
+\newcommand{\verbatimfont}[1]{\def\verbatim@font{#1}}%
+\makeatother
+\verbatimfont{\ttfamily}
+
+%hyperlink appearance
+\hypersetup{
+  colorlinks,
+  linkcolor={red!50!black},
+  citecolor={blue!50!black},
+  urlcolor={blue!80!black}
+}
+
+%code listings
+\lstset{
+  language=Haskell, %change later?
+  basicstyle=\footnotesize\ttfamily,
+  numbers=left,
+  numbersep=5pt,
+  tabsize=2,
+  showstringspaces=false, 
+  keywordstyle=\color{blue},
+  stringstyle=\color{orange!50!black},
+  emphstyle=\color{green!50!black}
+}
+
+%iso 8601 date format using EN-dashes
+\isodash{--}\isodate
+
+%nice headers and footers
+\setlength{\headheight}{45pt}
+\nouppercaseheads
+\makepagestyle{fancy}
+\makeoddhead{fancy}{}{}{\begin{minipage}{0.35\textwidth}\thetitle\\\theauthor\end{minipage}}
+\makeoddfoot{fancy}{\thedate}{}{\thepage\ of \thelastpage}
+\pagestyle{fancy}
+
+%pagestyles: book chapter cleared epigraph title part titlingpage
+\copypagestyle{chapter}{fancy}
+\copypagestyle{title}{fancy}
+
+%no section numbering
+\setsecnumdepth{chapter}
+
+%spacing
+\setlength\parindent{0pt}
+\setlength\parskip{0.5em}
+%\titlespacing*{\section}{0pt}{1\baselineskip}{1\baselineskip}
+%\titlespacing*{\subsection}{0pt}{0.5\baselineskip}{0.5\baselineskip}
+%\titlespacing*{\subsubsection}{0pt}{0.25\baselineskip}{0.25\baselineskip}
+
+\date{\protect\today}
+\title{Minimum Cost Flow \\ Assignment 1, AADS 2018 CSICU}
+\author{Karl D. Asmussen, Torvald A. Johnson \\
+\texttt{twk181}, \texttt{bwq210}}
+\newcommand\thecourse{Advanced Programming 2018\\CPH Univ. CS Dept.}
+
+\begin{document}
+\mainmatter
+
+\maketitle
+%\tableofcontents
+%\twocolumn
+
+%\appendix
+ 
+%\input{apdx1.tex}
+ 
+%\backmatter
+%\pagestyle{fancy}
+
+%\printbibliography%
+%\listoffigures
+%\listoftables
+%\printindex%
+
+\end{document}

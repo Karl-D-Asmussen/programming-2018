@@ -6,6 +6,7 @@ dependencies:
 - containers       # For Data.Map
 - tasty            # The test framework tasty
 - tasty-hunit      # unit-testing with tasty
+- mtl              # monad transformers
 
 # The basic library with the interpreter
 library:
