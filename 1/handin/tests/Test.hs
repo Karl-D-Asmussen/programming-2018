@@ -8,10 +8,19 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "Tests"
-  [ testCase "intro" $
+  ([ testCase "intro" $
       runExpr introExpr @?= Right introResult
   , testCase "scope" $
       runExpr scopeExpr @?= Right scopeResult
+  ] ++ myTests)
+
+myTest (n, a, b) = testCase n $ runExpr a @?= Right b
+myTests = map myTest
+  [ ("basic", (Call "+" [Number 1, Number 2]), IntVal 3)
+  , ("basicVar", (Comma (Assign "x" (Number 1)) (Var "x")), IntVal 1)
+  , ("compr", (Compr (ACFor "x" (Array [Number 1]) (ACBody (Var "x")))), ArrayVal [IntVal 1])
+  , ("stringFmt", (Call "%" [String "Hello %s", Array [String "world"]]), StringVal "Hello world")
+  , ("setDiff", (Call "-" [Array [Number 1, Number 2], Array [Number 1]]), ArrayVal [IntVal 2])
   ]
 
 introExpr :: Expr
@@ -43,10 +52,10 @@ introExpr =
 introResult :: Value
 introResult = ArrayVal
   [ ArrayVal [IntVal n | n <- [0..9]]
-  , undefined
-  , undefined
-  , undefined
-  , undefined
+  , ArrayVal [IntVal (n * n) | n <- [0..9]]
+  , ArrayVal $ map IntVal $ [0,2..8]
+  , ArrayVal (replicate 100 $ StringVal "a")
+  , ArrayVal $ map IntVal $ [1 .. 100]
   ]
 
 scopeExpr :: Expr
@@ -57,5 +66,5 @@ scopeExpr =
      (Array [Var "x", Var "y"]))
 
 scopeResult :: Value
-scopeResult = ArrayVal
-  undefined
+scopeResult = ArrayVal [IntVal 42, ArrayVal $ map (StringVal . (:"")) "abc"]
+  
