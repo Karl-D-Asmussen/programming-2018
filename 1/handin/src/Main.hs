@@ -26,7 +26,7 @@ main = do args <- getArgs
             [file] -> do
               s <- readFile file
               case runExpr (read s) of
-                Left e -> error $ e
+                Left (k, e) -> error $ e ++ " (" ++ show k ++ ")"
                 Right res -> putStrLn $ "Result is: " ++ nice res
             _ ->
               error "Give me a (single) argument!"

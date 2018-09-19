@@ -7,6 +7,7 @@ dependencies:
 - tasty            # The test framework tasty
 - tasty-hunit      # unit-testing with tasty
 - mtl              # monad transformers
+- random           # random numbers
 
 # The basic library with the interpreter
 library:

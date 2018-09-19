@@ -1,71 +1,42 @@
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import System.Random
+import Control.Monad
+
 import SubsInterpreter
 import SubsAst
 
-main = defaultMain tests
+main = defaultMain allTests
 
-tests :: TestTree
-tests = testGroup "Tests"
-  ([ testCase "intro" $
+allTests :: TestTree
+allTests = testGroup "All Tests" [handoutTests, basicTests, negativeTests]
+
+handoutTests :: TestTree
+handoutTests = testGroup "Handout Tests"
+  [ testCase "intro" $
       runExpr introExpr @?= Right introResult
   , testCase "scope" $
       runExpr scopeExpr @?= Right scopeResult
-  ] ++ myTests)
-
-testValues :: TestTree
-testValues = testGroup "Values"
-  where mkValue (Number i) = IntVal i
-        mkValue (String s) = StringVal s
-        mkValue TrueConst = TrueVal
-        mkValue FalseConst = FalseVal
-        mkValue Undefined = UndefinedVal
-        mkValue (Array vs) = ArrayVal $ map mkValue vs
-        mkValue _ = undefined
-        
-        numbers = map Number [0..100]
-        strings = map String [
-                    "rosiness" , "rhododendron" , "Netflix" , "effaced"
-                  , "poliomyelitis" , "tutors" , "flagon's" , "moon's"
-                  , "bedecks" , "cattiness" , "intellectualized"
-                  , "humiliation" , "graphite's" , "Jonah's" , "preliminary's"
-                  , "Boru's" , "litterbug" , "caps" , "asbestos" , "clotures"
-                  , "concept" , "bidding" , "virile" , "counterfeiter"
-                  , "spoofing" , "workhorse" , "frees" , "Buchwald's"
-                  , "breakfast's" , "nicks" , "Jesuits" , "geneses"
-                  , "hoaxer's" , "bucketful's" , "hypertension's" , "lifestyle"
-                  , "anatomist" , "worldly" , "uvulae" , "Nietzsche" , "meddle"
-                  , "coverage" , "linkup's" , "Donizetti's" , "Izaak"
-                  , "slowdown's" , "weatherproofs" , "sociologist"
-                  , "Francisca's" , "parfait's" , "Victorian" , "roundelay's"
-                  , "bedrock's" , "artists" , "understated" , "libretto's"
-                  , "cob's" , "apprenticeship" , "undeservedly" , "Wise's"
-                  , "kinetic" , "nougat" , "cantaloupe" , "generate"
-                  , "unsatisfactory" , "corridors" , "backslid" , "birch"
-                  , "haze" , "lambasted" , "benevolences" , "fugitives"
-                  , "Ir" , "vinegary" , "sooty" , "mills" , "drowses"
-                  , "reparations" , "frontiers" , "Roeg" , "smirches"
-                  , "gliders" , "snapper" , "thumbtack" , "coil" , "safeguards"
-                  , "neckerchief's" , "salver's" , "anointed" , "readmitted"
-                  , "rang" , "loam" , "pasturage" , "revoke" , "characterizing"
-                  , "loophole" , "plumper" , "pathway" , "crafting"
-                  , "cremating" ]
-        constants = [TrueConst, FalseConst, Undefined]
-
-        coinduceStep 0 = constants ++ numbers ++ strings
-                      ++ [Array numbers, Array strings, Array constants]
-        coinduceStep n = let x = coinduceStep (n-1) in x ++ [Array x]
-        
-        map mkValue coinduceStep 3
-myTest (n, a, b) = testCase n $ runExpr a @?= Right b
-myTests = map myTest
-  [ ("basic", Number 2, IntVal 2)
-  , ("basicVar", (Comma (Assign "x" (Number 1)) (Var "x")), IntVal 1)
-  , ("compr", (Compr (ACFor "x" (Array [Number 1]) (ACBody (Var "x")))), ArrayVal [IntVal 1])
-  , ("stringFmt", (Call "%" [String "Hello %s", Array [String "world"]]), StringVal "Hello world")
-  , ("setDiff", (Call "-" [Array [Number 1, Number 2], Array [Number 1]]), ArrayVal [IntVal 2])
   ]
+
+basicTests = testGroup "Basic Tests"
+  [ testCase "Numbers" $
+      forM_ [1..100] $
+         const $ do i <- getStdRandom (randomR (0, 1000))
+                    runExpr (Number i) @?= Right (IntVal i)
+  , testCase "Basic Variables" $
+      forM_ [1..100] $
+         const $ do nm <- sequence $ replicateM 3 getStdRandom (randomR ('a', 'z'))
+                    runExpr (Comma (Assign nm (String nm)) (Var nm)) @?= Right (StringVal nm)
+  ] 
+
+negativeTests = testGroup "Negative Tests"
+  [ testCase "DivZero" $ 
+    leftFst (runExpr (Call "%" [Number 1, Number 0])) @?= Just EValue
+  ]
+  where leftFst (Left (a, _)) = Just a
+        leftFst _ = Nothing
 
 introExpr :: Expr
 introExpr =
