@@ -1,4 +1,4 @@
-\documentclass[a4paper,article,10pt,notitlepage,twocolumn,oneside]{memoir}
+\documentclass[a4paper,article,10pt,notitlepage,onecolumn,oneside]{memoir}
 
 %%%%%%%%%%%%%%%%
 %%% PACKAGES %%%
@@ -100,24 +100,29 @@
 %\titlespacing*{\subsubsection}{0pt}{0.25\baselineskip}{0.25\baselineskip}
 
 \date{\protect\today}
-\title{Minimum Cost Flow \\ Assignment 1, AADS 2018 CSICU}
-\author{Karl D. Asmussen, Torvald A. Johnson \\
-\texttt{twk181}, \texttt{bwq210}}
+\title{Subscript Interpreter \\ Assignment 1, AP 2018 CSICU}
+\author{Karl D. Asmussen \texttt{twk181}}
 \newcommand\thecourse{Advanced Programming 2018\\CPH Univ. CS Dept.}
 
 \begin{document}
 \mainmatter
 
 \maketitle
+
+\section{The \lstinline{SubsM} Monad}
+
+The subscript interpreting monad \lstinline{SubsM} is a Reader-State combo.
+As such, I have added the \verb+mtl+ to dependencies and implemented the appropriate
+type classes for ease of use.
+
+\lstinputlisting[firstline=84, lastline=94]{handin/src/SubsInterpreter.hs}
+
 %\tableofcontents
 %\twocolumn
 
 %\appendix
  
-%\input{apdx1.tex}
- 
 %\backmatter
-%\pagestyle{fancy}
 
 %\printbibliography%
 %\listoffigures
