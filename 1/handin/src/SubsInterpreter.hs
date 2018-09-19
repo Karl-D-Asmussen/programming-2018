@@ -7,6 +7,7 @@ module SubsInterpreter
        , SubsM(runSubsM)
        , modifyEnv 
        , putVar 
+       , dropVar
        , getVar 
        , getFunction 
        , evalExpr 
@@ -41,6 +42,7 @@ import Control.Arrow ( (+++) )
 import qualified Data.Map as Map
 import Data.Map(Map)
 import Data.List
+import Data.Maybe
 
 -- | A value is either an integer, the special constant undefined,
 --   true, false, a string, or an array of values.
@@ -93,18 +95,21 @@ instance Applicative SubsM where
   pure = return
   (<*>) = ap
 
-
 modifyEnv :: (Env -> Env) -> SubsM ()
 modifyEnv = modify
+-- modifyEnv f = SubsM $ \(env, penv) -> Right ((), f env)
 
 putVar :: Ident -> Value -> SubsM Value
-putVar i v = modify (Map.insert i v) >> return v
+putVar i v = modifyEnv (Map.insert i v) >> return v
+
+dropVar :: Ident -> SubsM Value
+dropVar i = getVar i <* modifyEnv (Map.delete i)
 
 getVar :: Ident -> SubsM Value
-getVar i = do i' <- gets (Map.lookup i)
-              case i' of
-                   Just x -> return x
-                   Nothing -> throwError ("Name Error: variable not in scope " ++ i)
+getVar i = maybe (throwError $ "Name Error: variable not in scope " ++ i) return =<< gets (Map.lookup i)
+
+isVar :: Ident -> SubsM Bool
+isVar i = gets (Map.member i)
 
 getFunction :: FunName -> SubsM Primitive
 getFunction f = do i' <- reader (Map.lookup f)
@@ -141,15 +146,16 @@ evalCompr (ACIf c ac) = evalExpr c >>= body
         body FalseVal = return []
         body _ = throwError "Non-boolean passed to 'if' in array comprehension"
 
--- TODO
-evalCompr (ACFor i vs ac) = do val <- getVar i
-                               val <- evalExpr vs
-                               res <- body val
-                               put env
-                               return res
-  where body (ArrayVal vs) = concat `liftM` mapM ((>> evalCompr ac) . putVar i) vs
+evalCompr (ACFor i vs ac) = ifM (isVar i) (run shadow) (run noShadow)
+  where shadow = save (getVar i) (void . putVar i)
+        noShadow = save (return ()) (const $ void $ dropVar i) 
+
+        run x = x . body =<< evalExpr vs
+
+        body (ArrayVal vs) = concat `liftM` mapM ((>> evalCompr ac) . putVar i) vs
         body (StringVal vs) = concat `liftM` mapM ((>> evalCompr ac) . putVar i . StringVal . (:"")) vs
         body _ = throwError "Non-array passed to 'for' in array comprehension"
+
 
 initialPEnv :: PEnv
 initialPEnv = Map.fromList [ ("===", compEql)
@@ -237,7 +243,6 @@ opMod [a, b] = mod a b
         
         -- why not printf?
         mod (StringVal a) (ArrayVal b) = liftM StringVal (myPrintF a b)
-        
         myPrintF :: String -> [Value] -> SubsM String
         myPrintF ('%':'%':ss) vs = liftM ('%':) (myPrintF ss vs)
         myPrintF ('%':'i':ss) (IntVal i:vs) = liftM (shows i) (myPrintF ss vs)
@@ -252,3 +257,15 @@ opMod _ = throwError "Argument Error: wrong number of arguments passed to %"
 -- missing combinator, inspired by the ruby method of the same name
 tap :: Monad m => m a -> (a -> m ()) -> m a
 tap m f = do x <- m; f x; return x
+
+-- missing combinator, for saving and restoring e.g. parts of state
+save :: Monad m => m a -> (a -> m ()) -> m b -> m b
+save ma am mb = do a <- ma; b <- mb; am a; return b
+
+-- monadic version of when
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM c m = c >>= \c' -> if c' then m else return ()
+
+-- monadic if
+ifM :: Monad m => m Bool -> m a -> m a -> m a
+ifM c t e = c >>= \c' -> if c' then t else e
