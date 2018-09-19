@@ -1,5 +1,8 @@
 *.zip
 *.aux
+*.bcf
+*.out
+*.run.xml
 *.toc
 *.log
 *.pdf
