@@ -1,0 +1,122 @@
+#!/usr/bin/ruby
+
+require 'docopt'
+
+NULL = { in: File::NULL, out: File::NULL, err: File::NULL }
+DOC = <<DOC
+Tex handler
+
+Usage:
+  #{__FILE__} [options] FILE
+  #{__FILE__} ( -c | --clean ) FILE
+  #{__FILE__} -h | --help
+
+Options:
+  --help -h                  Show this help message
+  --clean -c                 Clean up
+  --dry-run -f               Complete compilation
+  --no-log -L                Do not inspect logs
+  --bibtex=ENGINE -b ENGINE  Use bibtex [default: biber]
+  --no-bibtex -B             Do not use bibtex
+  --no-shell-escapes -X      Do not allow shell escapes
+  --makeindex -i             Run makeindex 
+DOC
+
+def main
+  
+  docopt
+
+  filecheck
+
+  if clean?
+    clean!
+    exit
+  end
+
+  if dry_run?
+    clean!
+    compile
+    bibtex!
+    index!
+    compile
+  else
+    compile
+  end
+
+end
+
+END { main }
+
+def docopt
+  begin
+    $OPT = Docopt::docopt(DOC)
+  rescue Docopt::Exit => e
+    puts e.message
+    exit 1
+  end
+end
+
+def filecheck
+  unless File.exist?($OPT['FILE'] + '.tex')
+    $stderr.puts "Cannot find #{$OPT['FILE']}.tex"
+    exit 1
+  end
+end
+
+def clean?
+  $OPT['--clean']
+end
+
+def clean!
+  Dir[$OPT['FILE'] + '.{aux,bcf,idx,ind,run.xml,bbl,ilg,blg,toc,out,log}'].
+    each(&File.method(:delete))
+  Dir[$OPT['FILE'] + '-dot2tex-*.{dot,tex}'].
+    each(&File.method(:delete))
+end
+
+def dry_run?
+ $OPT['--dry-run']
+end
+
+def log?
+  ! $OPT['--no-log']
+end
+
+def log!
+  system('less', '+G', $OPT['FILE'] + '.log')
+end
+
+def compile!
+  if shell_escapes?
+    system('xelatex', '-halt-on-error', '-shell-escape', $OPT['FILE'] + '.tex', **NULL)
+  else
+    system('xelatex', '-halt-on-error', $OPT['FILE'] + '.tex', **NULL)
+  end
+end
+
+def compile
+  unless compile!
+    log! if log?
+    exit 0
+  end
+end
+
+def index?
+  $OPT['--makeindex']
+end
+
+def index!
+  system('makeindex', $OPT['FILE'], **NULL)
+end
+
+def bibtex?
+  not $OPT['--no-bibtex']
+end
+
+def shell_escapes?
+  not $OPT['--no-shell-escapes']
+end
+
+def bibtex!
+  system($OPT['--bibtex'], $OPT['FILE'], **NULL) 
+end
