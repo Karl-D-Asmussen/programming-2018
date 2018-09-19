@@ -66,7 +66,7 @@
   language=Haskell, %change later?
   basicstyle=\footnotesize\ttfamily,
   numbers=left,
-  numbersep=5pt,
+  numbersep=10pt,
   tabsize=2,
   showstringspaces=false, 
   keywordstyle=\color{blue},
@@ -111,11 +111,60 @@
 
 \section{The \lstinline{SubsM} Monad}
 
+\newcommand\thecodefile{SubsInterpreter.hs}
+\newcommand\thecodedir{handin/src/}
+\newcommand\showlines[2]{%
+\lstinputlisting[firstnumber=#1, firstline=#1, lastline=#2, caption={\thecodefile}]{\thecodedir\thecodefile}%
+}
+
 The subscript interpreting monad \lstinline{SubsM} is a Reader-State combo.
 As such, I have added the \verb+mtl+ to dependencies and implemented the appropriate
 type classes for ease of use.
 
-\lstinputlisting[firstline=84, lastline=94]{handin/src/SubsInterpreter.hs}
+\showlines{93}{106}
+
+This in turn makes it easy to define a number of utility functions, such as one
+to drop a defined variable from the environment.
+
+I've switched to a new error type, for ease of testing failure behavior:
+
+\showlines{56}{68}
+
+\section{Evaluation}
+
+Evaluation of the AST is implemented in straightforward fashion with some
+stylistic preferences for terseness and the use of combinators over \lstinline{do}-notation.
+
+\showlines{157}{158}
+\showlines{163}{164}
+
+The most interesting part is the evaluator for array comprehensions (\lstinline{evalCompr}, l. 172),
+which cleverly avoids clobbering variables using a novel combinator.
+
+\showlines{308}{310}
+
+\section{Testing}
+
+I've implemented a few basic tests that make use of the fact that \lstinline{Tasty}'s assertions
+live in the \lstinline{IO} monad, in order to generate random test cases.
+
+\renewcommand\thecodefile{Test.hs}
+\renewcommand\thecodedir{handin/tests/}
+
+\showlines{23}{27}
+
+I've also used my new error type to test for division by zero, which it turned out I had
+forgotten to implement.
+
+\showlines{34}{39}
+
+\appendix
+
+\section{Code Listing}
+
+\lstinputlisting[caption={SubsInterpreter.hs}]{handin/src/SubsInterpreter.hs}
+\lstinputlisting[caption={Main.hs}]{handin/src/Main.hs}
+\lstinputlisting[caption={Tests.hs}]{handin/tests/Test.hs}
 
 %\tableofcontents
 %\twocolumn
